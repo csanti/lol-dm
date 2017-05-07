@@ -31,18 +31,18 @@ public class Extractor {
     public static void main(String[] args) {
         if(args[0].equals("summoners")) {
             try {
-                if(args[1] == null || args[2] == null) {
-                    System.out.println("Comando incorrecto: summoners {nº paginas} {out filename}");
+                if(args.length != 4) {
+                    System.out.println("Comando incorrecto: summoners {nº paginas} {primera pagina} {out filename}");
                     return;
                 }
-                extractSummoners(Integer.parseInt(args[1]), args[2]);
+                extractSummoners(Integer.parseInt(args[1]), Integer.parseInt(args[2]), args[3]);
             } catch(Exception e) {
                 System.out.println("Error: "+e.toString());
             }
         }
         else if(args[0].equals("matches")) {
             try {
-                if(args[1] == null || args[2] == null) {
+                if(args.length != 3) {
                     System.out.println("Comando incorrecto: matches {in filename} {out filename}");
                     return;
                 }
@@ -54,7 +54,7 @@ public class Extractor {
         }
         else if(args[0].equals("matches_stats")) {
             try {
-                if(args[1] == null || args[2] == null) {
+                if(args.length != 3) {
                     System.out.println("Comando incorrecto: matches_stats {in filename} {out filename}");
                     return;
                 }
@@ -62,23 +62,28 @@ public class Extractor {
             } catch (Exception e) {
                 System.out.println("Error: "+e.toString());
             }
-
+        }
+        else {
+            System.out.println("Orden no reconocida");
         }
 
     }
 
-    public static void extractSummoners(int num, String outFileName) {
+    public static void extractSummoners(int num, int firstPage, String outFileName) {
         System.out.println("Extrayendo lista de summoners:");
 
         Client client = ClientBuilder.newBuilder().register(JacksonFeature.class).build();
 
         JSONArray summonersInfo = new JSONArray();
 
-        for(int i = 0; i < num; i++) {
+        for(int i = firstPage; i < firstPage+num; i++) {
+            // Peticiones a un endpint de lolking en el que se pueden pedir listas de summoners.
+            // Por cada petición (página) devuelve 10 summoners
             JSONObject lolkingresponse = executeGetRequest("http://www.lolking.net/leaderboards/68b9efb3d8cfe899a4e1c17b58e76ec8/euw/"+i+".json");
             JSONArray summoners = lolkingresponse.getJSONArray("data");
 
             for(int j = 0; j < summoners.length(); j++) {
+                // El endpoint de lolking solo devuelve summonerid, hacemos petición a riot para entontrar accountid
                 JSONObject accountInfo  = executeGetRequest("https://euw1.api.riotgames.com/lol/summoner/v3/summoners/"+summoners.getJSONObject(j).getLong("summoner_id")+"?api_key="+API_KEY);
                 summonersInfo.put(accountInfo);
             }
@@ -156,17 +161,12 @@ public class Extractor {
             return;
         }
         JSONArray jsonArray = new JSONArray(json_string);
-        Client client = ClientBuilder.newBuilder().register(JacksonFeature.class).build();
 
         for(int i = 0; i<jsonArray.length(); i++) {
             Object matchId = jsonArray.getJSONObject(i).get("gameId");
-            //System.out.println("https://euw1.api.riotgames.com/lol/euw/v2.2/match/"+matchId.toString()+"?api_key=6ab6acff-85f6-4580-b127-32067e5667ab");
-            Response response = client.target("https://euw1.api.riotgames.com/api/lol/euw/v2.2/match/"+matchId.toString()+"?api_key="+API_KEY).request(MediaType.APPLICATION_JSON).get();
-            if(response.getStatus() != 200) {
-                System.out.println(response.getStatus());
+            JSONObject matchObject = executeGetRequest("https://euw1.api.riotgames.com/api/lol/euw/v2.2/match/"+matchId.toString()+"?api_key="+API_KEY);
+            if(matchObject == null) // devolverá null si hay un error o timeout en la conexión
                 continue;
-            }
-            JSONObject matchObject = new JSONObject(response.readEntity(String.class));
             matchesArray.put(matchObject);
             if(i%10 == 0 && i != 0) {
                 System.out.println("Tamaño de matches: "+ matchesArray.length());
@@ -188,14 +188,16 @@ public class Extractor {
 
     public static JSONObject executeGetRequest( String url){
         try{
+            /*
             requests += 1;
             if( requests % 500 == 0 ){
                 TimeUnit.MINUTES.sleep(10);
-            }
+            }*/
             TimeUnit.SECONDS.sleep(1);
             URL mh_url = new URL( url );
             System.out.println( url );
             HttpURLConnection con = (HttpURLConnection) mh_url.openConnection();
+            con.setConnectTimeout(5000); // si tarda mas de 5 segundos lanza SocketTimeoutException
             int responseCode = con.getResponseCode();
             if( responseCode != 200 ){
                 /*
@@ -206,7 +208,7 @@ public class Extractor {
                 */
 
                 System.err.println( "Response Code " + responseCode + " received. Re issuing request." );
-                TimeUnit.SECONDS.sleep( 20 );
+                TimeUnit.SECONDS.sleep( 10 );
                 return executeGetRequest( url);
             }
             BufferedReader in = new BufferedReader( new InputStreamReader( con.getInputStream() ) );
@@ -217,6 +219,7 @@ public class Extractor {
                 response.append(inputLine);
             }
             in.close();
+
             return new JSONObject( response.toString() );
 
         }catch( Exception e ){
