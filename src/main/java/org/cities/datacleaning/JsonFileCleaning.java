@@ -50,7 +50,7 @@ public class JsonFileCleaning {
                 json_string += lines_iterator.next();
             }
 
-            List<String> champ_lines = Files.readAllLines( Paths.get( "ChampionIDWinRates.json" ), Charset.forName( "UTF-8" ) );
+            List<String> champ_lines = Files.readAllLines( Paths.get( "ChampionIdWinRates.json" ), Charset.forName( "UTF-8" ) );
             ListIterator<String> champ_lines_iterator = champ_lines.listIterator();
             while( champ_lines_iterator.hasNext() ){
                 champion_json_string += champ_lines_iterator.next();
