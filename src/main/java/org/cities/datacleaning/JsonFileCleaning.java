@@ -33,7 +33,7 @@ public class JsonFileCleaning {
         PrintWriter writer;
         try {
             writer = new PrintWriter(new File(out_file_name));
-            writer.println("Team1Win,Champ1WR,Champ2WR,Champ3WR,Champ4WR,Champ5WR,Champ6WR,Champ7WR,Champ8WR,Champ9WR,Champ10WR,PlayerChamp1WR,PlayerChamp2WR,PlayerChamp3WR,PlayerChamp4WR,PlayerChamp5WR,PlayerChamp6WR,PlayerChamp7WR,PlayerChamp8WR,PlayerChamp9WR,PlayerChamp10WR,Player1ChampTimes,Player2ChampTimes,Player3ChampTimes,Player4ChampTimes,Player5ChampTimes,Player6ChampTimes,Player7ChampTimes,Player8ChampTimes,Player9ChampTimes,Player10ChampTimes,Player1Ranking,Player2Ranking,Player3Ranking,Player4Ranking,Player5Ranking,Player6Ranking,Player7Ranking,Player8Ranking,Player9Ranking,Player10Ranking");
+            writer.println("Champ1WR,Champ2WR,Champ3WR,Champ4WR,Champ5WR,Champ6WR,Champ7WR,Champ8WR,Champ9WR,Champ10WR,PlayerChamp1WR,PlayerChamp2WR,PlayerChamp3WR,PlayerChamp4WR,PlayerChamp5WR,PlayerChamp6WR,PlayerChamp7WR,PlayerChamp8WR,PlayerChamp9WR,PlayerChamp10WR,Player1ChampTimes,Player2ChampTimes,Player3ChampTimes,Player4ChampTimes,Player5ChampTimes,Player6ChampTimes,Player7ChampTimes,Player8ChampTimes,Player9ChampTimes,Player10ChampTimes,Player1Ranking,Player2Ranking,Player3Ranking,Player4Ranking,Player5Ranking,Player6Ranking,Player7Ranking,Player8Ranking,Player9Ranking,Player10Ranking,Winner");
         } catch (Exception e) {
             System.out.println("Error creating printwriter");
             return;
@@ -68,7 +68,7 @@ public class JsonFileCleaning {
 
         for(int i = 0; i < matches.length(); i++) {
             /* Output parameters */
-            boolean Team1Win = false;
+            String winner = "";
             double[] champWr = new double[10];
             double[] playerChampWr = new double[10];
             double[] playerRecentWr = new double[10];
@@ -87,7 +87,9 @@ public class JsonFileCleaning {
             /* Team1Win */
 
             if(teams.getJSONObject(0).getBoolean("winner") == true) {
-                Team1Win = true;
+                winner = "Team1";
+            } else {
+                winner = "Team2";
             }
 
             /* playerChampWr */
@@ -98,7 +100,7 @@ public class JsonFileCleaning {
             JSONArray participantsIdentities = match.getJSONArray("participantIdentities");
             for(int j = 0; j < participantsIdentities.length(); j++) {
 
-                // me gio por el sumoner id y participant id de la identidad
+                // me guio por el sumoner id y participant id de la identidad
                 long summonerId = participantsIdentities.getJSONObject(j).getJSONObject("player").getLong("summonerId");
                 int participantId = participantsIdentities.getJSONObject(j).getInt("participantId");
 
@@ -163,11 +165,6 @@ public class JsonFileCleaning {
             System.out.println("Match "+ i +" procesado, guardando...");
             // Match procesado, procedemos a guardar
             try {
-                if(Team1Win) {
-                    writer.print("1,");
-                } else {
-                    writer.print("0,");
-                }
                 for(int in = 0; in < champWr.length; in++) {
                     writer.print(champWr[in]+",");
                 }
@@ -178,12 +175,9 @@ public class JsonFileCleaning {
                     writer.print(playerChampTimesPlayed[in]+",");
                 }
                 for(int in = 0; in < playerRanking.length; in++) {
-                    if(in == 9) {
-                        writer.print(playerRanking[in]+"\n");
-                        break;
-                    }
                     writer.print(playerRanking[in]+",");
                 }
+                writer.println(winner);
                 cleanedMatchesIds.add(match_id);
             } catch(Exception e) {
                 System.err.println("Error writing match results "+ e.toString());

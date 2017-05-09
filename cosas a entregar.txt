@@ -1,0 +1,4 @@
+justificar cantidad de atributos
+justificar cantidad deinstancias
+justificar algoritmo -> utilizarr un criterio: curva roc, porcentaje de acierto...
+codigo
