@@ -63,6 +63,17 @@ public class Extractor {
                 System.out.println("Error: "+e.toString());
             }
         }
+        else if(args[0].equals("champions")) {
+            try {
+                if(args.length != 2) {
+                    System.out.println("Comando incorrecto: champions {out filename}");
+                    return;
+                }
+                extractChampionWinRates(args[1]);
+            } catch (Exception e) {
+                System.out.println("Error: "+e.toString());
+            }
+        }
         else {
             System.out.println("Orden no reconocida");
         }
@@ -184,6 +195,13 @@ public class Extractor {
             writer.close();
         }
 
+    }
+
+    public static void extractChampionWinRates(String outFileName) {
+        JSONObject championWrJson = new JSONObject();
+
+        JSONObject championGGResponse = executeGetRequest("http://api.champion.gg/v2/champions?api_key=361848ab661179653f9cbfe3a17412e6");
+        System.out.println(championGGResponse.toString());
     }
 
     public static JSONObject executeGetRequest( String url){
