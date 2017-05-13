@@ -200,8 +200,23 @@ public class Extractor {
     public static void extractChampionWinRates(String outFileName) {
         JSONObject championWrJson = new JSONObject();
 
-        JSONObject championGGResponse = executeGetRequest("http://api.champion.gg/v2/champions?api_key=361848ab661179653f9cbfe3a17412e6");
-        System.out.println(championGGResponse.toString());
+        JSONArray championGGResponse = executeGetRequestArray("http://api.champion.gg/v2/champions?api_key=361848ab661179653f9cbfe3a17412e6&limit=400");
+        System.out.println("ChampionGG response lenght: "+championGGResponse.length());
+        int i = 0;
+        for(i=0; i < championGGResponse.length(); i++) {
+            championWrJson.put(Integer.toString(championGGResponse.getJSONObject(i).getJSONObject("_id").getInt("championId")), championGGResponse.getJSONObject(i).getDouble("winRate"));
+        }
+
+        System.out.println("Guardando json con "+i+" champion WRs");
+        PrintWriter writer = null;
+        try {
+            writer = new PrintWriter(outFileName);
+            writer.print(championWrJson);
+        } catch(Exception e) {
+            System.out.println(e.toString());
+        } finally {
+            writer.close();
+        }
     }
 
     public static JSONObject executeGetRequest( String url){
@@ -239,6 +254,48 @@ public class Extractor {
             in.close();
 
             return new JSONObject( response.toString() );
+
+        }catch( Exception e ){
+            System.err.println( e );
+            return null;
+        }
+    }
+
+    public static JSONArray executeGetRequestArray(String url) {
+        try{
+            /*
+            requests += 1;
+            if( requests % 500 == 0 ){
+                TimeUnit.MINUTES.sleep(10);
+            }*/
+            TimeUnit.SECONDS.sleep(1);
+            URL mh_url = new URL( url );
+            System.out.println( url );
+            HttpURLConnection con = (HttpURLConnection) mh_url.openConnection();
+            con.setConnectTimeout(5000); // si tarda mas de 5 segundos lanza SocketTimeoutException
+            int responseCode = con.getResponseCode();
+            if( responseCode != 200 ){
+                /*
+                if(responseCode == 404) {
+                    System.err.println("Response Code " + responseCode + " received.");
+                    return null;
+                }
+                */
+
+                System.err.println( "Response Code " + responseCode + " received. Re issuing request." );
+                TimeUnit.SECONDS.sleep( 10 );
+                return executeGetRequestArray( url);
+            }
+            BufferedReader in = new BufferedReader( new InputStreamReader( con.getInputStream() ) );
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            return new JSONArray( response.toString() );
 
         }catch( Exception e ){
             System.err.println( e );
