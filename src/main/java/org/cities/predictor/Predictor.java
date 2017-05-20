@@ -23,19 +23,61 @@ public class Predictor {
 
     public static void main(String[] args) throws Exception {
         // load data
-        Instances train = DataSource.read("data/clean_lk_0905_0-5.arff");
+        Instances train = DataSource.read("data/clean_lk_2005_0-10.arff");
         train.setClassIndex(train.numAttributes() - 1);
 
+
+        /*
+        Instances test = DataSource.read("data/clean_lk_2005_0-10.arff");
+
+        test.setClassIndex(test.numAttributes() -1);
+
+        NaiveBayes cls = new NaiveBayes();
+        cls.buildClassifier(train);
+
+        System.out.println("# - actual - predicted - error - distribution");
+        for(int i = 0; i < test.numInstances(); i++) {
+            double pred = cls.classifyInstance(test.instance(i));
+            double[] dist = cls.distributionForInstance(test.instance(i));
+            System.out.print(i+1);
+            System.out.print(" - ");
+            System.out.print(test.instance(i).toString(test.classIndex()));
+            System.out.print(" - ");
+            System.out.print(test.classAttribute().value((int)pred));
+            System.out.print(" - ");
+            if(pred != test.instance(i).classValue()) {
+                System.out.print("yes");
+            } else {
+                System.out.print("no");
+            }
+            System.out.print(" - ");
+            System.out.print(Utils.arrayToString(dist));
+            System.out.println();
+        }
+
+        */
+
         // Constructor creating an empty set of instances. Copies references to the header information from the given set of instances.
+
         Instances newData = null;
         newData = new Instances(train,1);
 
-        long matchId = 3166095643L;
-        Instance inst = extractDataFromMatchId(matchId, new JSONObject(), newData);
+        System.out.println("Introduce el identificador de partida: ");
+
+        long matchId = 0L;
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+            String input = br.readLine();
+            matchId = Long.parseLong(input);
+        } catch(Exception e) {
+            System.out.println("Input erróneo");
+            return;
+        }
+
+
+        Instance inst = extractDataFromMatchId(matchId, newData);
 
         System.out.println(inst.toString());
-
-        /*
 
 
         // train classifier
@@ -43,20 +85,27 @@ public class Predictor {
         cls.buildClassifier(train);
 
         // output predictions
-        System.out.println("# - actual - predicted - error - distribution");
+        //System.out.println("# - actual - predicted - error - distribution");
+
 
         double pred = cls.classifyInstance(inst);
         double[] dist = cls.distributionForInstance(inst);
+        System.out.println("*************************************************************************************************");
 
-        System.out.print(newData.classAttribute().value((int) pred));
-        System.out.print(" - ");
-        System.out.print(Utils.arrayToString(dist));
-        System.out.println();
-        */
+        System.out.println("Prediction: "+newData.classAttribute().value((int) pred)+" wins : Distribution = "+Double.toString(dist[0])+" - "+Double.toString(dist[1]));
+
+        System.out.println("*************************************************************************************************");
+        System.out.println("Actual winner: "+inst.classAttribute().value((int)pred));
+        if(pred == inst.classValue()) {
+            System.out.print("La predicción ha sido correcta");
+        } else {
+            System.out.print("La predicción no ha sido crrecta");
+        }
+
 
     }
 
-    public static Instance extractDataFromMatchId(long matchId, JSONObject champsWr, Instances dataSetInstances) {
+    public static Instance extractDataFromMatchId(long matchId, Instances dataSetInstances) {
         Instance inst = new DenseInstance(41);
         inst.setDataset(dataSetInstances);
 
@@ -68,6 +117,7 @@ public class Predictor {
         int[] playerChampTimesPlayed = new int[10];
         int[] playerRanking = new int[10];
 
+        JSONObject champsWr = extractChampionWinRates();
         JSONObject match = executeGetRequest("https://euw1.api.riotgames.com/api/lol/euw/v2.2/match/"+matchId+"?api_key="+API_KEY);
         if(match == null) {
             // devolverá null si hay un error o timeout en la conexión
@@ -169,6 +219,7 @@ public class Predictor {
             for(int in = 0; in < playerRanking.length; in++) {
                 inst.setValue(in+30, playerRanking[in]);
             }
+            inst.setValue(40, winner);
         } catch(Exception e) {
             System.err.println("Error writing match results "+ e.toString());
         }
@@ -212,6 +263,19 @@ public class Predictor {
         return 8;
     }
 
+    public static JSONObject extractChampionWinRates() {
+        JSONObject championWrJson = new JSONObject();
+
+        JSONArray championGGResponse = executeGetRequestArray("http://api.champion.gg/v2/champions?api_key=361848ab661179653f9cbfe3a17412e6&limit=400");
+        System.out.println("ChampionGG response lenght: "+championGGResponse.length());
+        int i = 0;
+        for(i=0; i < championGGResponse.length(); i++) {
+            championWrJson.put(Integer.toString(championGGResponse.getJSONObject(i).getJSONObject("_id").getInt("championId")), championGGResponse.getJSONObject(i).getDouble("winRate"));
+        }
+
+        return championWrJson;
+    }
+
     public static JSONObject executeGetRequest(String url){
         try{
             /*
@@ -247,6 +311,47 @@ public class Predictor {
             in.close();
 
             return new JSONObject( response.toString() );
+
+        }catch( Exception e ){
+            System.err.println( e );
+            return null;
+        }
+    }
+    public static JSONArray executeGetRequestArray(String url) {
+        try{
+            /*
+            requests += 1;
+            if( requests % 500 == 0 ){
+                TimeUnit.MINUTES.sleep(10);
+            }*/
+            TimeUnit.SECONDS.sleep(1);
+            URL mh_url = new URL( url );
+            System.out.println( url );
+            HttpURLConnection con = (HttpURLConnection) mh_url.openConnection();
+            con.setConnectTimeout(5000); // si tarda mas de 5 segundos lanza SocketTimeoutException
+            int responseCode = con.getResponseCode();
+            if( responseCode != 200 ){
+                /*
+                if(responseCode == 404) {
+                    System.err.println("Response Code " + responseCode + " received.");
+                    return null;
+                }
+                */
+
+                System.err.println( "Response Code " + responseCode + " received. Re issuing request." );
+                TimeUnit.SECONDS.sleep( 10 );
+                return executeGetRequestArray( url);
+            }
+            BufferedReader in = new BufferedReader( new InputStreamReader( con.getInputStream() ) );
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            return new JSONArray( response.toString() );
 
         }catch( Exception e ){
             System.err.println( e );
